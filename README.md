@@ -23,8 +23,8 @@ Plataforma para que el equipo de Ingeniería (Preventa, Implementación y, próx
 
 - **App web estática** en GitHub Pages, sin servidor ni paso de compilación (`index.html`, `src/`, `assets/`).
 - **Inicio de sesión** con Entra ID (MSAL 4, incluido en `assets/vendor`).
-- **Datos** en 9 listas de SharePoint (`sipnologysacv.sharepoint.com/sites/Ingenieria`), vía Microsoft Graph con los permisos de cada usuario.
-- **Avisos** con GitHub Actions + credencial federada de Entra ID (sin secretos), entregados por un flujo de Power Automate: tarjeta de Teams y correo desde ingenieria@sipnology.com.mx. Solo al dueño de la actividad y al director.
+- **Datos** en listas de SharePoint, vía Microsoft Graph con los permisos de cada usuario.
+- **Avisos**: un proceso programado los deja en una cola de SharePoint y un flujo de Power Automate (conectores estándar) los entrega por Teams y correo. Solo al dueño de la actividad y al director.
 
 ```
 src/
@@ -34,13 +34,11 @@ src/
   graph.js · sharepoint.js · auth.js · data.js
   vistas/          pantallas
 avisos/            motor de avisos (Node 22, sin dependencias)
-docs/INSTALACION.md
 ```
 
 ## Empezar
 
 - **Ver la demo sin configurar nada:** `python3 -m http.server 8765` y abre `http://localhost:8765/?demo` (o `?demo=ingeniero`). Mientras `src/config.js` tenga valores `PENDIENTE` la app arranca en demostración.
-- **Instalar en Sipnology:** sigue [docs/INSTALACION.md](docs/INSTALACION.md).
 - **Pruebas:** `npm test` · `node avisos/enviar-avisos.mjs --modo=diario --demo`
 
 ## Cómo se calcula la carga
