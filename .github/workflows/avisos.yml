@@ -16,7 +16,7 @@ on:
         options: [diario, mediodia, eventos, semanal]
         default: diario
       simular:
-        description: 'Solo mostrar lo que se enviaría (no envía ni registra)'
+        description: 'Solo mostrar lo que se enviaría (no encola nada)'
         type: boolean
         default: true
 
@@ -68,6 +68,4 @@ jobs:
           SP_HOSTNAME: ${{ vars.SP_HOSTNAME }}
           SP_RUTA: ${{ vars.SP_RUTA }}
           APP_URL: ${{ vars.APP_URL }}
-          AVISOS_FLUJO_URL: ${{ secrets.AVISOS_FLUJO_URL }}
-          BUZON_REMITENTE: ${{ vars.BUZON_REMITENTE }}
         run: node avisos/enviar-avisos.mjs --modo=${{ steps.modo.outputs.modo }} ${{ steps.modo.outputs.extra }}
