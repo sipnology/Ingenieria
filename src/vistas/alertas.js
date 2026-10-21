@@ -55,11 +55,11 @@ export async function vistaAlertas(ctx) {
             <span><b>9:00</b>: vencidas, sin actualizar y sobrecarga.</span>
             <span><b>12:00</b>: "vence mañana" (día hábil anterior a la fecha compromiso).</span>
             <span><b>Lunes 8:30</b>: resumen semanal.</span>
-            <span>La solicitud de autorización de cambio de fecha sale al momento, desde el correo de quien la pide.</span>
+            <span>La solicitud de autorización de cambio de fecha sale al momento (en 1 a 5 minutos), desde ingenieria@.</span>
           </div>
         </section>
         <section class="tarjeta" aria-labelledby="t-env">
-          <h2 id="t-env">Últimos avisos enviados</h2>
+          <h2 id="t-env">Últimos avisos</h2>
           <div data-enviados><div class="cargando">Cargando…</div></div>
         </section>
       </div>
@@ -67,7 +67,7 @@ export async function vistaAlertas(ctx) {
 
   repo.notificaciones(40).then((lista) => {
     main.querySelector('[data-enviados]').innerHTML = lista.length ? `<div class="bitacora">${lista.map((n) => `<div class="entrada">
-      <div class="entrada__cab"><span>${esc(fechaHora(n.enviado))}</span><span>·</span><span>${esc((n.canal || '').replace('teams', 'Teams').replace('correo', 'correo').replace('+', ' y '))}</span></div>
+      <div class="entrada__cab"><span>${esc(fechaHora(n.enviado))}</span><span>·</span><span>${esc((n.canal || '').replace('teams', 'Teams').replace('+', ' y '))}</span><span class="pill ${n.estado === 'Enviado' ? 'pill--completada' : n.estado === 'Error' ? 'pill--vencida' : 'pill--sin'}">${esc(n.estado || 'Pendiente')}</span></div>
       <div class="entrada__txt"><b>${esc(NOMBRE_REGLA[n.regla] || n.regla)}</b> → ${esc(n.destinatario)}${n.actividadId ? ` · <a href="#/actividad/${n.actividadId}">actividad ${n.actividadId}</a>` : ''}</div></div>`).join('')}</div>`
       : '<p class="vacio">Aún no se ha enviado ningún aviso (o el motor de avisos todavía no corre).</p>';
   }).catch((e) => { main.querySelector('[data-enviados]').innerHTML = `<p class="vacio">${esc(mensajeError(e))}</p>`; });

@@ -8,8 +8,8 @@ export const urlApp = () => location.origin + location.pathname.replace(/index\.
 export const directores = (estado) => estado.datos.equipo.filter((p) => p.rol === 'Director' && p.activo && p.email);
 
 /**
- * Registra la solicitud de cambio de fecha y envía al director el correo con el botón Autorizar
- * (desde el buzón de quien solicita). Si el correo falla, el motor de avisos lo reintenta.
+ * Registra la solicitud de cambio de fecha y encola para el director el correo con el botón Autorizar
+ * (lo entrega el flujo desde ingenieria@). Si no se pudo encolar, el motor de avisos lo reintenta.
  */
 export async function solicitarCambioFecha(ctx, actividad, fechaNueva, justificacion) {
   const { repo, estado } = ctx;
@@ -21,15 +21,14 @@ export async function solicitarCambioFecha(ctx, actividad, fechaNueva, justifica
     `Solicitó cambiar la fecha compromiso de ${fechaCorta(actividad.fechaCompromiso)} a ${fechaCorta(fechaNueva)}. Pendiente de autorización.\nJustificación: ${justificacion}`, estado.usuario);
   let correo = false;
   try {
-    const para = directores(estado).map((d) => d.email);
-    if (para.length) {
-      const { asunto, html } = correoAutorizacion({ actividad, solicitud, appUrl: urlApp() });
-      await repo.enviarCorreo({ para, asunto, html });
-      await repo.actualizarSolicitud(solicitud.id, { correoEnviado: true });
-      correo = true;
+    const { asunto, html } = correoAutorizacion({ actividad, solicitud, appUrl: urlApp() });
+    for (const d of directores(estado)) {
+      await repo.encolarAviso({ llave: `solicitudFecha:${solicitud.id}|${d.email}`, regla: 'solicitudFecha', actividadId: actividad.id, destinatario: d.email, asunto, html, enviarCorreo: true });
     }
+    await repo.actualizarSolicitud(solicitud.id, { correoEnviado: true });
+    correo = true;
   } catch (e) {
-    console.warn('No se pudo enviar el correo de autorización; el motor de avisos lo reintentará.', e);
+    console.warn('No se pudo encolar el correo de autorización; el motor de avisos lo reintentará.', e);
   }
   return { solicitud, correo };
 }
