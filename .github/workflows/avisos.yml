@@ -1,0 +1,73 @@
+name: Avisos de Ingeniería
+
+# Horarios en UTC. Ciudad de México = UTC-6 todo el año (sin horario de verano).
+on:
+  schedule:
+    - cron: '*/30 14-23 * * 1-5'   # eventos: 8:00–17:30 lun–vie
+    - cron: '*/30 0-1 * * 2-6'     # eventos: 18:00–19:30 lun–vie
+    - cron: '7 15 * * 1-5'         # diario: 9:07 lun–vie (vencidas, sin actualizar, sobrecarga)
+    - cron: '3 18 * * 1-5'         # mediodía: 12:03 lun–vie ("vence mañana")
+    - cron: '23 14 * * 1'          # semanal: lunes 8:23
+  workflow_dispatch:
+    inputs:
+      modo:
+        description: 'Qué avisos evaluar'
+        type: choice
+        options: [diario, mediodia, eventos, semanal]
+        default: diario
+      simular:
+        description: 'Solo mostrar lo que se enviaría (no envía ni registra)'
+        type: boolean
+        default: true
+
+permissions:
+  id-token: write   # token OIDC para la credencial federada con Entra ID
+  contents: read
+
+concurrency:
+  group: avisos
+  cancel-in-progress: false
+
+jobs:
+  avisos:
+    # No corre hasta que se configuren las variables (evita fallas cada 30 min durante la instalación)
+    if: vars.AVISOS_CLIENT_ID != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Determinar modo
+        id: modo
+        env:
+          HORARIO: ${{ github.event.schedule }}
+          MODO_MANUAL: ${{ inputs.modo }}
+          SIMULAR_MANUAL: ${{ inputs.simular }}
+        run: |
+          case "$HORARIO" in
+            '7 15 * * 1-5') MODO=diario ;;
+            '3 18 * * 1-5') MODO=mediodia ;;
+            '23 14 * * 1')  MODO=semanal ;;
+            '')             MODO="${MODO_MANUAL:-diario}" ;;
+            *)              MODO=eventos ;;
+          esac
+          EXTRA=""
+          if [ "$SIMULAR_MANUAL" = "true" ]; then EXTRA="--simular"; fi
+          echo "modo=$MODO" >> "$GITHUB_OUTPUT"
+          echo "extra=$EXTRA" >> "$GITHUB_OUTPUT"
+          echo "Modo: $MODO $EXTRA"
+
+      - name: Enviar avisos
+        env:
+          AVISOS_TENANT_ID: ${{ vars.AVISOS_TENANT_ID }}
+          AVISOS_CLIENT_ID: ${{ vars.AVISOS_CLIENT_ID }}
+          SP_HOSTNAME: ${{ vars.SP_HOSTNAME }}
+          SP_RUTA: ${{ vars.SP_RUTA }}
+          APP_URL: ${{ vars.APP_URL }}
+          AVISOS_FLUJO_URL: ${{ secrets.AVISOS_FLUJO_URL }}
+          BUZON_REMITENTE: ${{ vars.BUZON_REMITENTE }}
+        run: node avisos/enviar-avisos.mjs --modo=${{ steps.modo.outputs.modo }} ${{ steps.modo.outputs.extra }}
