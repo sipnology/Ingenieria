@@ -6,7 +6,7 @@ export const CONFIG = {
   // Directorio de Sipnology (el mismo que usa el NOC)
   tenantId: '7e4245e5-225d-4ad0-9cf3-276fcc694c15',
   // Entra ID → Registros de aplicaciones → "Seguimiento Ingeniería (web)" → Id. de aplicación (cliente)
-  clientId: 'PENDIENTE-ID-DE-APLICACION',
+  clientId: '5eaca380-e206-45ef-9516-fa32af37f5ea',
 
   // Sitio de SharePoint donde viven las listas: https://sipnologysacv.sharepoint.com/sites/Ingenieria
   sitio: {
