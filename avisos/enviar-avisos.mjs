@@ -10,16 +10,16 @@
 //   AVISOS_TENANT_ID, AVISOS_CLIENT_ID   app "Seguimiento Ingeniería (avisos)" con credencial federada
 //   SP_HOSTNAME, SP_RUTA                 sitio de SharePoint (p. ej. sipnology.sharepoint.com, /sites/Ingenieria)
 //   APP_URL                              URL de la app en GitHub Pages
-//   AVISOS_FLUJO_URL (secreto)           URL del flujo de Power Automate que entrega los avisos: tarjeta de Teams
-//                                        (Flow bot) y correo desde el buzón compartido ingenieria@sipnology.com.mx
-//   BUZON_REMITENTE (opcional)           solo si NO hay flujo: correo vía Graph con permiso de aplicación Mail.Send
+//
+// El motor no envía nada directamente: deja cada aviso en la lista Notificaciones (cola) y un flujo de
+// Power Automate con conectores estándar lo entrega por Teams y correo. Solo necesita Sites.Selected.
 
 import { crearGraph } from '../src/graph.js';
 import { crearSharePoint } from '../src/sharepoint.js';
 import { LISTAS } from '../src/schema.js';
 import {
   evaluarAlertas, fechaLocal, actividadDeItem, integranteDeItem, configuracionEfectiva, solicitudDeItem, MODOS,
-  categoriaDeItem, clienteDeItem, proyectoDeItem, camposDeSolicitud,
+  categoriaDeItem, clienteDeItem, proyectoDeItem, camposDeSolicitud, camposDeAviso,
 } from '../src/logic.js';
 import { semillaDemo } from '../src/demo-data.js';
 import { crearProveedorToken } from './token.mjs';
@@ -72,35 +72,14 @@ async function cargarDatos(sp) {
   };
 }
 
-/** Entrega por el flujo de Power Automate: tarjeta de Teams y/o correo desde el buzón compartido. */
-async function enviarPorFlujo(urlFlujo, aviso, canales, appUrl, hoy) {
+/** Deja el aviso en la cola; el flujo de Power Automate lo entrega y marca el estado. */
+async function encolar(sp, aviso, canales, appUrl, hoy) {
   const { asunto, html } = correo(aviso, appUrl, hoy);
-  const r = await fetch(urlFlujo, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      destinatario: aviso.destinatario.email,
-      asunto,
-      enviarTeams: canales.includes('teams'),
-      enviarCorreo: canales.includes('correo'),
-      html,
-      type: 'message',
-      attachments: [{ contentType: 'application/vnd.microsoft.card.adaptive', contentUrl: null, content: tarjetaTeams(aviso, appUrl) }],
-    }),
-  });
-  if (!r.ok && r.status !== 202) throw new Error(`El flujo respondió ${r.status}: ${(await r.text()).slice(0, 300)}`);
-}
-
-async function enviarCorreo(graph, remitente, aviso, appUrl, hoy) {
-  const { asunto, html } = correo(aviso, appUrl, hoy);
-  await graph.post(`/users/${encodeURIComponent(remitente)}/sendMail`, {
-    message: {
-      subject: asunto,
-      body: { contentType: 'HTML', content: html },
-      toRecipients: [{ emailAddress: { address: aviso.destinatario.email, name: aviso.destinatario.nombre } }],
-    },
-    saveToSentItems: false,
-  });
+  await sp.crear(LISTAS.notificaciones, camposDeAviso({
+    llave: aviso.llave, regla: aviso.regla, actividadId: aviso.actividad?.id ?? null, destinatario: aviso.destinatario.email,
+    asunto, html, tarjeta: canales.includes('teams') ? tarjetaTeams(aviso, appUrl) : null,
+    enviarTeams: canales.includes('teams'), enviarCorreo: canales.includes('correo'),
+  }));
 }
 
 async function principal() {
@@ -125,24 +104,11 @@ async function principal() {
   }
 
   const appUrl = env('APP_URL');
-  const urlFlujo = env('AVISOS_FLUJO_URL', false);
-  const remitente = env('BUZON_REMITENTE', false);
-  if (!urlFlujo && !remitente) throw new Error('Configura AVISOS_FLUJO_URL (recomendado) o BUZON_REMITENTE.');
   let fallidos = 0;
   for (const aviso of avisos.slice(0, MAX_AVISOS)) {
-    let canales = aviso.canal === 'ambos' ? ['teams', 'correo'] : [aviso.canal];
-    if (!urlFlujo) canales = ['correo']; // sin flujo no hay Teams: todo por correo
+    const canales = aviso.canal === 'ambos' ? ['teams', 'correo'] : [aviso.canal];
     try {
-      if (urlFlujo) await enviarPorFlujo(urlFlujo, aviso, canales, appUrl, hoy);
-      else await enviarCorreo(graph, remitente, aviso, appUrl, hoy);
-      await sp.crear(LISTAS.notificaciones, {
-        Title: aviso.llave.slice(0, 255),
-        ActividadId: aviso.actividad?.id ?? null,
-        Regla: aviso.regla,
-        Destinatario: aviso.destinatario.email,
-        Canal: canales.join('+'),
-        Enviado: new Date().toISOString(),
-      });
+      await encolar(sp, aviso, canales, appUrl, hoy);
       if (aviso.regla === 'solicitudFecha') await sp.actualizar(LISTAS.solicitudes, aviso.solicitud.id, camposDeSolicitud({ correoEnviado: true }));
       console.log(`  ✓ ${aviso.regla} → ${aviso.destinatario.email} (${canales.join('+')})`);
     } catch (e) {
@@ -150,7 +116,7 @@ async function principal() {
       console.error(`  ✗ ${aviso.regla} → ${aviso.destinatario.email}: ${e.message}`);
     }
   }
-  console.log(`Listo: ${Math.min(avisos.length, MAX_AVISOS) - fallidos} enviados, ${fallidos} con error.`);
+  console.log(`Listo: ${Math.min(avisos.length, MAX_AVISOS) - fallidos} avisos en la cola, ${fallidos} con error.`);
   return fallidos ? 1 : 0;
 }
 
