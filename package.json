@@ -1,0 +1,13 @@
+{
+  "name": "seguimiento-ingenieria",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Seguimiento de actividades de Ingeniería Sipnology (GitHub Pages + Entra ID + SharePoint)",
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "test": "node --test tests/*.test.mjs",
+    "avisos": "node avisos/enviar-avisos.mjs",
+    "avisos:prueba": "node avisos/enviar-avisos.mjs --modo=diario --simular"
+  }
+}
