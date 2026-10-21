@@ -188,13 +188,19 @@ export const ESQUEMA = {
     ],
   },
   [LISTAS.notificaciones]: {
-    descripcion: 'Registro de avisos enviados (evita duplicados)',
+    descripcion: 'Cola y registro de avisos. Un flujo de Power Automate entrega cada elemento nuevo por Teams y/o correo.',
     columnas: [
       number('ActividadId', 'Actividad (ID)'),
       text('Regla', 'Regla'),
       text('Destinatario', 'Destinatario'),
       text('Canal', 'Canal'),
-      indexado(dateTime('Enviado', 'Enviado')),
+      text('Asunto', 'Asunto', { maxLength: 255 }),
+      note('Html', 'Correo (HTML)'),
+      note('Tarjeta', 'Tarjeta de Teams (JSON)'),
+      bool('EnviarTeams', 'Enviar por Teams'),
+      bool('EnviarCorreo', 'Enviar por correo'),
+      choice('Estado', 'Estado', ['Pendiente', 'Enviado', 'Error']),
+      indexado(dateTime('Enviado', 'Registrado')),
     ],
   },
 };
@@ -208,7 +214,7 @@ export const REGLAS = [
   { id: 'sobrecarga', nombre: 'Carga por encima de capacidad', detalle: 'Cuando alguien supera su capacidad semanal (una vez por semana)', modo: 'diario', destinatarios: { responsable: true, director: true }, editable: true },
   { id: 'accionDirector', nombre: 'Petición al director', detalle: 'En cuanto alguien marca que necesita algo del director', modo: 'eventos', destinatarios: { responsable: false, director: true }, editable: false },
   { id: 'accionRespondida', nombre: 'Petición respondida', detalle: 'Al dueño cuando el director responde su petición', modo: 'eventos', destinatarios: { responsable: true, director: false }, editable: false },
-  { id: 'solicitudFecha', nombre: 'Solicitud de cambio de fecha', detalle: 'Correo con botón Autorizar. Lo envía la plataforma al momento; esta regla solo lo reintenta si falló', modo: 'eventos', destinatarios: { responsable: false, director: true }, editable: false, canalFijo: 'correo' },
+  { id: 'solicitudFecha', nombre: 'Solicitud de cambio de fecha', detalle: 'Correo con botón Autorizar. La plataforma lo encola al momento; esta regla solo lo reintenta si no se encoló', modo: 'eventos', destinatarios: { responsable: false, director: true }, editable: false, canalFijo: 'correo' },
   { id: 'fechaResuelta', nombre: 'Cambio de fecha autorizado o rechazado', detalle: 'Al dueño cuando el director resuelve su solicitud', modo: 'eventos', destinatarios: { responsable: true, director: false }, editable: false },
   { id: 'resumenSemanal', nombre: 'Resumen semanal', detalle: 'Lunes por la mañana: al director el panorama y a cada ingeniero solo lo suyo', modo: 'semanal', destinatarios: { responsable: true, director: true }, editable: true },
 ];

@@ -4,7 +4,7 @@
 import { LISTAS } from './schema.js';
 import {
   actividadDeItem, camposDeActividad, integranteDeItem, camposDeIntegrante, bitacoraDeItem, configuracionEfectiva,
-  categoriaDeItem, clienteDeItem, proyectoDeItem, solicitudDeItem, camposDeSolicitud,
+  categoriaDeItem, clienteDeItem, proyectoDeItem, solicitudDeItem, camposDeSolicitud, camposDeAviso,
 } from './logic.js';
 import { semillaDemo, directorioDemo } from './demo-data.js';
 
@@ -15,9 +15,8 @@ const ahoraISO = () => new Date().toISOString();
  * @param tz            zona horaria
  * @param spConfiguracion listas con permiso para crearlas (solo configuración inicial)
  * @param graphDirectorio Graph con permisos de directorio (solo pantalla Equipo; se piden al usarla)
- * @param graph          Graph normal (para enviar correo como el usuario)
  */
-export function repoSharePoint({ sp, tz, spConfiguracion = sp, graphDirectorio, graph }) {
+export function repoSharePoint({ sp, tz, spConfiguracion = sp, graphDirectorio }) {
   let idsConfig = new Map();
   let grupoId = null;
 
@@ -78,12 +77,9 @@ export function repoSharePoint({ sp, tz, spConfiguracion = sp, graphDirectorio, 
     async actualizarSolicitud(id, cambios) {
       await sp.actualizar(LISTAS.solicitudes, id, camposDeSolicitud(cambios));
     },
-    /** Correo desde el buzón de quien usa la app (permiso delegado Mail.Send). */
-    async enviarCorreo({ para, asunto, html }) {
-      await graph.post('/me/sendMail', {
-        message: { subject: asunto, body: { contentType: 'HTML', content: html }, toRecipients: para.map((address) => ({ emailAddress: { address } })) },
-        saveToSentItems: true,
-      });
+    /** Deja un aviso en la cola (lista Notificaciones); el flujo de Power Automate lo entrega. */
+    async encolarAviso(a) {
+      await sp.crear(LISTAS.notificaciones, camposDeAviso(a));
     },
 
     /* ── Catálogos ── */
@@ -150,7 +146,7 @@ export function repoSharePoint({ sp, tz, spConfiguracion = sp, graphDirectorio, 
     async notificaciones(limite = 40) {
       const desde = new Date(Date.now() - 14 * 86400000).toISOString();
       const items = await sp.items(LISTAS.notificaciones, { filtro: `fields/Enviado ge '${desde}'` });
-      return items.map((i) => ({ regla: i.fields.Regla, destinatario: i.fields.Destinatario, canal: i.fields.Canal, enviado: i.fields.Enviado, actividadId: i.fields.ActividadId }))
+      return items.map((i) => ({ regla: i.fields.Regla, destinatario: i.fields.Destinatario, canal: i.fields.Canal, enviado: i.fields.Enviado, actividadId: i.fields.ActividadId, estado: i.fields.Estado || 'Pendiente' }))
         .sort((a, b) => (b.enviado || '').localeCompare(a.enviado || '')).slice(0, limite);
     },
     sitio: () => sp.obtenerSitio(),
@@ -198,8 +194,8 @@ export function repoDemo(hoy, usuario) {
       return lento(sol);
     },
     async actualizarSolicitud(id, cambios) { Object.assign(s.solicitudes.find((x) => x.id === Number(id)), cambios); return lento(null); },
-    async enviarCorreo({ para, asunto }) {
-      console.info(`[demo] Correo a ${para.join(', ')}: ${asunto}`);
+    async encolarAviso(a) {
+      s.notificaciones.unshift({ regla: a.regla, destinatario: a.destinatario, canal: [a.enviarTeams && 'teams', a.enviarCorreo && 'correo'].filter(Boolean).join('+'), enviado: ahoraISO(), actividadId: a.actividadId, estado: 'Pendiente' });
       return lento(null);
     },
     async guardarCatalogo(tipo, x) {

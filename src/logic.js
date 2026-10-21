@@ -361,6 +361,16 @@ export function indicadores(actividades, hoy, feriados = []) {
   };
 }
 
+/** Elemento de la cola de avisos (lista Notificaciones). */
+export function camposDeAviso({ llave, regla, actividadId = null, destinatario, asunto, html = '', tarjeta = null, enviarTeams = false, enviarCorreo = false }) {
+  return {
+    Title: String(llave).slice(0, 255), Regla: regla, ActividadId: actividadId, Destinatario: destinatario,
+    Canal: [enviarTeams && 'teams', enviarCorreo && 'correo'].filter(Boolean).join('+'),
+    Asunto: String(asunto || '').slice(0, 255), Html: html, Tarjeta: tarjeta ? JSON.stringify(tarjeta) : '',
+    EnviarTeams: !!enviarTeams, EnviarCorreo: !!enviarCorreo, Estado: 'Pendiente', Enviado: new Date().toISOString(),
+  };
+}
+
 /* ─────────────────────── Estadísticas por periodo ─────────────────────── */
 
 /** Siguiente día hábil después de `fecha`. */

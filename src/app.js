@@ -160,11 +160,10 @@ async function arrancar() {
     const auth = await import('./auth.js');
     estado.usuario = await auth.iniciar();
     if (!estado.usuario) return; // redirigiendo a Entra ID
-    const graph = crearGraph((scopes) => auth.obtenerToken(scopes));
-    const sp = crearSharePoint(graph, CONFIG.sitio);
+    const sp = crearSharePoint(crearGraph((scopes) => auth.obtenerToken(scopes)), CONFIG.sitio);
     const spConfiguracion = crearSharePoint(crearGraph(() => auth.obtenerToken(auth.SCOPES_CONFIGURACION)), CONFIG.sitio);
     const graphDirectorio = crearGraph(() => auth.obtenerToken(auth.SCOPES_DIRECTORIO));
-    repo = repoSharePoint({ sp, tz: CONFIG.zonaHoraria, spConfiguracion, graphDirectorio, graph });
+    repo = repoSharePoint({ sp, tz: CONFIG.zonaHoraria, spConfiguracion, graphDirectorio });
   }
   await recargar();
   dibujarMarco();

@@ -2,7 +2,7 @@
 /* global msal */
 import { CONFIG } from './config.js';
 
-export const SCOPES = ['User.Read', 'Sites.ReadWrite.All', 'Mail.Send'];
+export const SCOPES = ['User.Read', 'Sites.ReadWrite.All'];
 // Se piden solo donde se usan (como en el NOC): si aún no tienen consentimiento, el resto de la app sigue funcionando.
 export const SCOPES_CONFIGURACION = ['Sites.Manage.All'];
 export const SCOPES_DIRECTORIO = ['User.ReadBasic.All', 'GroupMember.ReadWrite.All'];
