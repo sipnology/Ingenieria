@@ -40,7 +40,8 @@ const RUTAS = {
   autorizar: vistaAutorizar,
 };
 const SOLO_DIRECTOR = new Set(['alertas', 'equipo']);
-const DIRECTOR_O_LIDER = new Set(['catalogos']);
+// Catálogos: todo el equipo (clientes y oportunidades); categorías y bajas, director y líderes
+const DEL_EQUIPO = new Set(['catalogos']);
 
 function navegar(hash) {
   if (location.hash === hash) enrutar();
@@ -83,7 +84,7 @@ function dibujarMarco() {
     ['actividades', 'Actividades'],
     ['nueva', 'Nueva actividad'],
     ['indicadores', 'Indicadores'],
-    ...(estado.esDirector || estado.rol === 'Líder' ? [['catalogos', 'Catálogos']] : []),
+    ...(estado.yo ? [['catalogos', 'Catálogos']] : []),
     ...(estado.esDirector ? [['equipo', 'Equipo'], ['alertas', 'Alertas']] : []),
   ];
   raiz.innerHTML = `
@@ -122,7 +123,7 @@ async function enrutar() {
 
   if (estado.errorCarga?.codigo === 'listaNoExiste' && ruta !== 'configuracion') ruta = 'configuracion';
   if (SOLO_DIRECTOR.has(ruta) && !estado.esDirector) ruta = '';
-  if (DIRECTOR_O_LIDER.has(ruta) && !estado.esDirector && estado.rol !== 'Líder') ruta = '';
+  if (DEL_EQUIPO.has(ruta) && !estado.yo) ruta = '';
   const vista = RUTAS[ruta] || vistaTablero;
 
   marcarNav(ruta);
