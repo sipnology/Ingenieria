@@ -14,7 +14,9 @@ export async function vistaFormulario(ctx) {
     main.innerHTML = '<div class="aviso aviso--error">No encontré esa actividad. <a href="#/actividades">Volver a actividades</a></div>';
     return;
   }
-  const puedeCatalogo = estado.esDirector || estado.rol === 'Líder';
+  // Clientes y oportunidades los da de alta quien registra la actividad (todo el equipo);
+  // las categorías siguen siendo del director y los líderes (pantalla Catálogos).
+  const puedeCatalogo = true;
   const pendiente = editando ? D.solicitudes.find((s) => s.actividadId === previa.id && s.estatus === 'Pendiente') : null;
   const yo = estado.usuario.email;
   const equipo = D.equipo.filter((p) => p.activo || p.email === previa?.responsableEmail).sort((a, b) => a.nombre.localeCompare(b.nombre));
@@ -136,7 +138,7 @@ export async function vistaFormulario(ctx) {
   });
   form.estatus.addEventListener('change', () => { if (form.estatus.value === 'Completada') { form.avance.value = 100; form.querySelector('#avance-out').value = 100; } });
 
-  // Alta rápida en catálogo (director y líderes)
+  // Alta rápida de cliente y oportunidad/proyecto (todo el equipo)
   main.querySelector('[data-nuevo-cliente]')?.addEventListener('click', async () => {
     let nuevo = null;
     await dialogo({
@@ -145,7 +147,8 @@ export async function vistaFormulario(ctx) {
       alEnviar: async (f) => {
         const nombre = f.nombre.value.trim();
         if (!nombre) throw errorValidacion('Escribe el nombre.');
-        if (D.clientes.some((c) => c.nombre.toLowerCase() === nombre.toLowerCase())) throw errorValidacion('Ese cliente ya está en el catálogo.');
+        const existente = D.clientes.find((c) => c.nombre.toLowerCase() === nombre.toLowerCase());
+        if (existente) throw errorValidacion(existente.activo ? 'Ese cliente ya está en el catálogo: elígelo en la lista.' : 'Ese cliente existe pero está desactivado. Pídele al director o a tu líder que lo reactive.');
         nuevo = { id: await repo.guardarCatalogo('clientes', { nombre, activo: true }), nombre, activo: true };
       },
     });
@@ -162,6 +165,8 @@ export async function vistaFormulario(ctx) {
       alEnviar: async (f) => {
         const nombre = f.nombre.value.trim();
         if (!nombre) throw errorValidacion('Escribe el nombre.');
+        const existente = D.proyectos.find((p) => p.clienteId === clienteId && p.nombre.toLowerCase() === nombre.toLowerCase());
+        if (existente) throw errorValidacion(existente.activo ? 'Esa oportunidad ya está en el catálogo de este cliente.' : 'Esa oportunidad existe pero está desactivada. Pídele al director o a tu líder que la reactive.');
         nuevo = { id: await repo.guardarCatalogo('proyectos', { nombre, clienteId, cliente: cliente.nombre, activo: true }), nombre, clienteId, cliente: cliente.nombre, activo: true };
       },
     });

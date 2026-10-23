@@ -9,7 +9,10 @@ const CAMPO_TXT = { categorias: 'categoria', clientes: 'cliente', proyectos: 'pr
 
 export async function vistaCatalogos(ctx) {
   const { estado, main } = ctx;
-  estado.pestanaCatalogo ||= 'categorias';
+  // Todo el equipo da de alta y corrige clientes y oportunidades; categorías, desactivar y eliminar: director y líderes
+  const gestiona = estado.esDirector || estado.rol === 'Líder';
+  const pestanas = gestiona ? PESTANAS : PESTANAS.filter(([id]) => id !== 'categorias');
+  if (!pestanas.some(([id]) => id === estado.pestanaCatalogo)) estado.pestanaCatalogo = pestanas[0][0];
   const t = estado.pestanaCatalogo;
   const D = estado.datos;
   const uso = (tipo, id) => D.actividades.filter((a) => a[CAMPO_ID[tipo]] === id).length;
@@ -19,27 +22,29 @@ export async function vistaCatalogos(ctx) {
     const area = estado.areaCatalogo || 'Preventa';
     const filas = D.categorias.filter((c) => c.area === area).sort((a, b) => a.orden - b.orden || a.nombre.localeCompare(b.nombre));
     tabla = `<div class="chips" role="group" aria-label="Área">${AREAS.map((x) => `<button type="button" class="chip" data-area-cat="${esc(x)}" aria-pressed="${x === area}">${esc(x)} · ${D.categorias.filter((c) => c.area === x && c.activo).length}</button>`).join('')}</div>
-      ${tablaCatalogo(filas, [['Orden', (c) => c.orden], ['Categoría', (c) => `<b>${esc(c.nombre)}</b>`]], (c) => uso('categorias', c.id))}`;
+      ${tablaCatalogo(filas, [['Orden', (c) => c.orden], ['Categoría', (c) => `<b>${esc(c.nombre)}</b>`]], (c) => uso('categorias', c.id), gestiona)}`;
   } else if (t === 'clientes') {
     const filas = [...D.clientes].sort((a, b) => a.nombre.localeCompare(b.nombre));
-    tabla = tablaCatalogo(filas, [['Cliente', (c) => `<b>${esc(c.nombre)}</b>`], ['Proyectos', (c) => D.proyectos.filter((p) => p.clienteId === c.id && p.activo).length]], (c) => uso('clientes', c.id));
+    tabla = tablaCatalogo(filas, [['Cliente', (c) => `<b>${esc(c.nombre)}</b>`], ['Proyectos', (c) => D.proyectos.filter((p) => p.clienteId === c.id && p.activo).length]], (c) => uso('clientes', c.id), gestiona);
   } else {
     const filas = [...D.proyectos].sort((a, b) => a.cliente.localeCompare(b.cliente) || a.nombre.localeCompare(b.nombre));
-    tabla = tablaCatalogo(filas, [['Cliente', (p) => esc(D.clientes.find((c) => c.id === p.clienteId)?.nombre || p.cliente)], ['Oportunidad / proyecto', (p) => `<b>${esc(p.nombre)}</b>`]], (p) => uso('proyectos', p.id));
+    tabla = tablaCatalogo(filas, [['Cliente', (p) => esc(D.clientes.find((c) => c.id === p.clienteId)?.nombre || p.cliente)], ['Oportunidad / proyecto', (p) => `<b>${esc(p.nombre)}</b>`]], (p) => uso('proyectos', p.id), gestiona);
   }
 
   main.innerHTML = `
     <div class="encabezado"><div class="encabezado__txt">
-      <div class="kicker">Configuración · director y líderes</div><h1>Catálogos</h1>
-      <p class="sub">Lo que el equipo elige al registrar una actividad. Un elemento en uso no se borra: se desactiva y su historial se conserva.</p></div>
+      <div class="kicker">${gestiona ? 'Configuración · catálogos del equipo' : 'Clientes y oportunidades'}</div><h1>Catálogos</h1>
+      <p class="sub">${gestiona ? 'Lo que el equipo elige al registrar una actividad. Un elemento en uso no se borra: se desactiva y su historial se conserva.'
+        : 'Da de alta o corrige clientes y oportunidades. Para desactivar o eliminar alguno, pídeselo al director o a tu líder.'}</p></div>
       <div class="acciones"><button type="button" class="btn" data-masiva>Carga masiva</button><button type="button" class="btn btn--primario" data-nuevo>+ Agregar</button></div></div>
-    <div class="segmentado" role="tablist" aria-label="Catálogo">${PESTANAS.map(([id, txt]) => `<button type="button" role="tab" data-pestana="${id}" aria-selected="${id === t}" aria-pressed="${id === t}">${txt}</button>`).join('')}</div>
+    <div class="segmentado" role="tablist" aria-label="Catálogo">${pestanas.map(([id, txt]) => `<button type="button" role="tab" data-pestana="${id}" aria-selected="${id === t}" aria-pressed="${id === t}">${txt}</button>`).join('')}</div>
     <section class="tarjeta" style="gap:14px">${tabla}</section>`;
 
   const tras = async (p) => { if (await p) { await ctx.recargar(); ctx.refrescar(); } };
   main.addEventListener('click', async (e) => {
     const b = e.target.closest('button');
     if (!b) return;
+    if (!gestiona && ('activar' in b.dataset || 'borrar' in b.dataset)) return;
     if (b.dataset.pestana) { estado.pestanaCatalogo = b.dataset.pestana; ctx.refrescar(); return; }
     if (b.dataset.areaCat) { estado.areaCatalogo = b.dataset.areaCat; ctx.refrescar(); return; }
     if ('nuevo' in b.dataset) return tras(editar(ctx, t, null));
@@ -57,15 +62,15 @@ export async function vistaCatalogos(ctx) {
   });
 }
 
-function tablaCatalogo(filas, columnas, usoDe) {
+function tablaCatalogo(filas, columnas, usoDe, gestiona = true) {
   if (!filas.length) return '<p class="vacio">Aún no hay elementos. Usa "+ Agregar" o "Carga masiva".</p>';
   return `<div class="tabla-caja"><table class="tabla">
     <thead><tr>${columnas.map(([t]) => `<th scope="col">${t}</th>`).join('')}<th scope="col">Actividades</th><th scope="col">Estado</th><th scope="col"><span class="oculto-visual">Acciones</span></th></tr></thead>
     <tbody>${filas.map((x) => `<tr>${columnas.map(([, f]) => `<td>${f(x)}</td>`).join('')}<td>${usoDe(x)}</td>
       <td>${x.activo ? '<span class="pill pill--curso">Activo</span>' : '<span class="pill pill--sin">Inactivo</span>'}</td>
       <td style="white-space:nowrap"><button type="button" class="btn btn--texto" data-editar data-id="${x.id}">Editar</button>
-        <button type="button" class="btn btn--texto" data-activar data-id="${x.id}">${x.activo ? 'Desactivar' : 'Activar'}</button>
-        <button type="button" class="btn btn--texto btn--peligro" data-borrar data-id="${x.id}">Eliminar</button></td></tr>`).join('')}</tbody></table></div>`;
+        ${gestiona ? `<button type="button" class="btn btn--texto" data-activar data-id="${x.id}">${x.activo ? 'Desactivar' : 'Activar'}</button>
+        <button type="button" class="btn btn--texto btn--peligro" data-borrar data-id="${x.id}">Eliminar</button>` : ''}</td></tr>`).join('')}</tbody></table></div>`;
 }
 
 function editar(ctx, tipo, x) {
