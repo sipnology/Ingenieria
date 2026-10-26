@@ -85,7 +85,9 @@ function lista(items, hoy) {
 export async function vistaActividades(ctx) {
   const { estado, main } = ctx;
   const f = estado.filtros;
-  const personas = [...new Map(estado.datos.equipo.filter((p) => p.activo).map((p) => [p.email, p.nombre])).entries()].sort((a, b) => a[1].localeCompare(b[1]));
+  // El director no registra actividades: solo aparece si alguna quedó a su nombre
+  const conActividades = new Set(estado.datos.actividades.map((a) => a.responsableEmail));
+  const personas = [...new Map(estado.datos.equipo.filter((p) => p.activo && (p.rol !== 'Director' || conActividades.has(p.email))).map((p) => [p.email, p.nombre])).entries()].sort((a, b) => a[1].localeCompare(b[1]));
   const clientes = [...new Set(estado.datos.actividades.map((a) => a.cliente).filter(Boolean))].sort();
   const categorias = [...new Set(estado.datos.actividades.filter((a) => !f.area || a.area === f.area).map((a) => a.categoria).filter(Boolean))].sort();
   const opt = (v, t, sel) => `<option value="${esc(v)}"${v === sel ? ' selected' : ''}>${esc(t)}</option>`;
