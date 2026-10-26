@@ -94,7 +94,7 @@ export async function vistaActividades(ctx) {
     <div class="encabezado">
       <div class="encabezado__txt"><div class="kicker">Ingeniería · todo el equipo</div><h1>Actividades</h1>
         <p class="sub">Todos ven todo; cada quien actualiza lo suyo.</p></div>
-      <a class="btn btn--primario" href="#/nueva">+ Nueva actividad</a>
+      ${estado.esDirector ? '' : '<a class="btn btn--primario" href="#/nueva">+ Nueva actividad</a>'}
     </div>
     <form class="filtros" role="search" data-filtros>
       <div class="campo campo--ancho"><label for="f-q">Buscar</label><input id="f-q" name="texto" type="search" value="${esc(f.texto)}" placeholder="Actividad, cliente, proyecto, categoría…"></div>

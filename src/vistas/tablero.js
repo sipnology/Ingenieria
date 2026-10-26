@@ -2,14 +2,16 @@
 import { AREAS } from '../schema.js';
 import {
   indicadores, cargaPorPersona, situacion, estaAbierta, accionPendiente, sumarDias, fechaCorta,
-  fechaLocal, diasHabiles, semanaISO, finSemana,
+  fechaLocal, diasHabiles, semanaISO, finSemana, textoDiasHabiles,
 } from '../logic.js';
 import { esc, pillEstado, textoFecha, etqArea } from '../ui.js';
 import { htmlCarga, responderPeticion, cerrarPeticion, avanceRapido } from './comun.js';
 
 export async function vistaTablero(ctx) {
   const { estado, main } = ctx;
-  if (!estado.modoTablero) estado.modoTablero = ['Director', 'Líder'].includes(estado.rol) ? 'equipo' : 'personal';
+  // El director no registra actividades: siempre ve el tablero del equipo
+  if (estado.esDirector) estado.modoTablero = 'equipo';
+  else if (!estado.modoTablero) estado.modoTablero = estado.rol === 'Líder' ? 'equipo' : 'personal';
   if (estado.rol === 'Líder' && estado.areaTablero === '' && estado.yo?.area && !estado._areaInicial) {
     estado.areaTablero = estado.yo.area;
     estado._areaInicial = true;
@@ -21,7 +23,7 @@ export async function vistaTablero(ctx) {
 
 function cabecera(estado, kicker, titulo, extra = '') {
   const semana = semanaISO(estado.hoy).slice(-2);
-  const alternar = `<div class="segmentado" role="group" aria-label="Vista del tablero">
+  const alternar = estado.esDirector ? '' : `<div class="segmentado" role="group" aria-label="Vista del tablero">
     <button type="button" data-modo="equipo" aria-pressed="${estado.modoTablero === 'equipo'}">Equipo</button>
     <button type="button" data-modo="personal" aria-pressed="${estado.modoTablero === 'personal'}">Mi semana</button></div>`;
   return `<div class="encabezado">
@@ -60,7 +62,7 @@ function tableroEquipo(estado) {
     <section class="kpis" aria-label="Indicadores">
       <a class="kpi" href="#/actividades"><span class="kpi__etq">Actividades abiertas</span><span class="kpi__num">${k.abiertas}</span><span class="kpi__det">${esc(porArea)}</span></a>
       <div class="kpi"><span class="kpi__etq">Vencen esta semana</span><span class="kpi__num">${k.venceSemana}</span><span class="kpi__det">${k.riesgoSemana} en riesgo</span></div>
-      <a class="kpi ${k.vencidas ? 'kpi--alerta' : ''}" href="#/actividades" data-situacion="vencidas"><span class="kpi__etq">Vencidas</span><span class="kpi__num">${k.vencidas}</span><span class="kpi__det">${k.vencidas ? `La más antigua: ${k.maxDiasVencida} día${k.maxDiasVencida === 1 ? '' : 's'}` : 'Todo al corriente'}</span></a>
+      <a class="kpi ${k.vencidas ? 'kpi--alerta' : ''}" href="#/actividades" data-situacion="vencidas"><span class="kpi__etq">Vencidas</span><span class="kpi__num">${k.vencidas}</span><span class="kpi__det">${k.vencidas ? `La más antigua: ${textoDiasHabiles(k.maxDiasVencida)}` : 'Todo al corriente'}</span></a>
       <div class="kpi ${totalDirector ? 'kpi--oscuro' : ''}"><span class="kpi__etq">${estado.esDirector ? 'Requieren tu acción' : 'Esperan al director'}</span><span class="kpi__num">${totalDirector}</span><span class="kpi__det">${solicitudes.length ? `${solicitudes.length} cambio${solicitudes.length === 1 ? '' : 's'} de fecha por autorizar` : k.directorUrgentes ? `${k.directorUrgentes} para hoy o mañana` : 'Nada urgente'}</span></div>
       <div class="kpi"><span class="kpi__etq">Esperando a otras áreas</span><span class="kpi__num">${k.esperandoAreas}</span><span class="kpi__det">${esc(otras.map(([x, l]) => `${x} ${l.length}`).join(' · ') || 'Ninguna')}</span></div>
     </section>
@@ -158,7 +160,7 @@ function tableroPersonal(estado) {
   for (const a of responsable.filter(estaAbierta)) {
     const s = situacion(a, hoy, feriados);
     if (a.requiereAccion && a.accionResuelta && a.accionRespuesta) atencion.push({ a, motivo: `Te respondieron (${a.accionDe}): ${a.accionRespuesta}`, tipo: 'respuesta' });
-    else if (s.clave === 'vencida') atencion.push({ a, motivo: `Vencida hace ${s.dias} día${s.dias === 1 ? '' : 's'}: pide cambio de fecha o márcala como completada`, tipo: 'avance' });
+    else if (s.clave === 'vencida') atencion.push({ a, motivo: `Vencida hace ${textoDiasHabiles(s.dias)}: pide cambio de fecha o márcala como completada`, tipo: 'avance' });
     else if (s.clave === 'hoy' || s.clave === 'proxima') atencion.push({ a, motivo: s.clave === 'hoy' ? 'Vence hoy' : `Vence en ${s.dias} día${s.dias === 1 ? '' : 's'} hábil${s.dias === 1 ? '' : 'es'}`, tipo: 'avance' });
     else if (a.ultimaActualizacion && diasHabiles(fechaLocal(a.ultimaActualizacion), hoy, feriados) >= 5) atencion.push({ a, motivo: 'Lleva más de 5 días hábiles sin actualizar', tipo: 'avance' });
   }

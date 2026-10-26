@@ -19,7 +19,8 @@ export async function vistaFormulario(ctx) {
   const puedeCatalogo = true;
   const pendiente = editando ? D.solicitudes.find((s) => s.actividadId === previa.id && s.estatus === 'Pendiente') : null;
   const yo = estado.usuario.email;
-  const equipo = D.equipo.filter((p) => p.activo || p.email === previa?.responsableEmail).sort((a, b) => a.nombre.localeCompare(b.nombre));
+  // El director no registra ni es responsable de actividades (salvo las que ya tuviera a su nombre)
+  const equipo = D.equipo.filter((p) => (p.activo && p.rol !== 'Director') || p.email === previa?.responsableEmail).sort((a, b) => a.nombre.localeCompare(b.nombre));
   const a = previa || {
     titulo: '', area: estado.yo?.area || 'Preventa', categoriaId: null, clienteId: null, proyectoId: null,
     responsableEmail: yo, responsableNombre: estado.usuario.nombre, colaboradores: [],
