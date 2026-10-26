@@ -49,7 +49,14 @@ test('fechas de SharePoint no se recorren', () => {
 
 test('situación y riesgo', () => {
   assert.equal(situacion(act({ fechaCompromiso: '2026-10-17' }), HOY).clave, 'vencida');
-  assert.equal(situacion(act({ fechaCompromiso: '2026-10-17' }), HOY).dias, 4);
+  assert.equal(situacion(act({ fechaCompromiso: '2026-10-17' }), HOY).dias, 3); // sáb 17 → mié 21: lun, mar, mié
+  // Vence viernes, hoy lunes: 1 día hábil de atraso (el fin de semana no cuenta)
+  assert.equal(situacion(act({ fechaCompromiso: '2026-10-23' }), '2026-10-26').dias, 1);
+  assert.equal(situacion(act({ fechaCompromiso: '2026-10-22' }), '2026-10-26').dias, 2);
+  // Vence viernes, hoy sábado: ya está vencida, cuenta como 1
+  assert.equal(situacion(act({ fechaCompromiso: '2026-10-23' }), '2026-10-24').dias, 1);
+  // Feriado en medio no cuenta
+  assert.equal(situacion(act({ fechaCompromiso: '2026-11-13' }), '2026-11-17', ['2026-11-16']).dias, 1);
   assert.equal(situacion(act({ fechaCompromiso: HOY }), HOY).clave, 'hoy');
   assert.equal(situacion(act({ fechaCompromiso: '2026-10-23' }), HOY).clave, 'proxima');
   assert.equal(situacion(act({ estatus: 'Completada' }), HOY).clave, 'cerrada');
@@ -81,7 +88,7 @@ test('indicadores', () => {
   ], HOY);
   assert.equal(k.abiertas, 4);
   assert.equal(k.vencidas, 1);
-  assert.equal(k.maxDiasVencida, 4);
+  assert.equal(k.maxDiasVencida, 3);
   assert.equal(k.venceSemana, 2);
   assert.equal(k.requierenDirector, 1);
   assert.equal(k.directorUrgentes, 1);
