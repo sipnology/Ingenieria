@@ -1,5 +1,5 @@
 // Utilidades de interfaz: escape de HTML, pastillas, avisos y diálogos.
-import { situacion, enRiesgo, fechaCorta } from './logic.js';
+import { situacion, enRiesgo, fechaCorta, textoDiasHabiles } from './logic.js';
 
 export function esc(v) {
   return String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -23,7 +23,7 @@ export function pillEstado(a, hoy) {
   if (a.estatus === 'Completada') return '<span class="pill pill--completada">Completada</span>';
   if (a.estatus === 'Cancelada') return '<span class="pill pill--cancelada">Cancelada</span>';
   const s = situacion(a, hoy);
-  if (s.clave === 'vencida') return `<span class="pill pill--vencida">Vencida · ${s.dias} día${s.dias === 1 ? '' : 's'}</span>`;
+  if (s.clave === 'vencida') return `<span class="pill pill--vencida" title="Días hábiles de atraso: no cuentan fines de semana ni feriados">Vencida · ${textoDiasHabiles(s.dias)}</span>`;
   if (a.estatus === 'Bloqueada') return '<span class="pill pill--bloqueada">Bloqueada</span>';
   if (a.estatus === 'En espera') return '<span class="pill pill--espera">En espera</span>';
   if (enRiesgo(a, hoy)) return '<span class="pill pill--riesgo">En riesgo</span>';

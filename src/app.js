@@ -82,7 +82,7 @@ function dibujarMarco() {
   const enlaces = [
     ['', 'Tablero'],
     ['actividades', 'Actividades'],
-    ['nueva', 'Nueva actividad'],
+    ...(estado.esDirector ? [] : [['nueva', 'Nueva actividad']]),
     ['indicadores', 'Indicadores'],
     ...(estado.yo ? [['catalogos', 'Catálogos']] : []),
     ...(estado.esDirector ? [['equipo', 'Equipo'], ['alertas', 'Alertas']] : []),
@@ -123,6 +123,7 @@ async function enrutar() {
 
   if (estado.errorCarga?.codigo === 'listaNoExiste' && ruta !== 'configuracion') ruta = 'configuracion';
   if (SOLO_DIRECTOR.has(ruta) && !estado.esDirector) ruta = '';
+  if (ruta === 'nueva' && estado.esDirector) ruta = 'actividades'; // el director no registra actividades
   if (DEL_EQUIPO.has(ruta) && !estado.yo) ruta = '';
   const vista = RUTAS[ruta] || vistaTablero;
 

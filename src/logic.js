@@ -256,6 +256,9 @@ export function configuracionEfectiva(guardada = {}) {
 
 /* ───────────────────── Estado de una actividad ───────────────────── */
 
+/** "1 día hábil" / "3 días hábiles" */
+export const textoDiasHabiles = (n) => `${n} día${n === 1 ? '' : 's'} hábil${n === 1 ? '' : 'es'}`;
+
 export const estaAbierta = (a) => !ESTATUS_CERRADOS.includes(a.estatus);
 
 /**
@@ -266,7 +269,8 @@ export function situacion(a, hoy, feriados = []) {
   if (!estaAbierta(a)) return { clave: 'cerrada', dias: 0 };
   if (!a.fechaCompromiso) return { clave: 'sinFecha', dias: 0 };
   const dh = diasHabiles(hoy, a.fechaCompromiso, feriados);
-  if (a.fechaCompromiso < hoy) return { clave: 'vencida', dias: diasNaturales(a.fechaCompromiso, hoy), diasHabiles: -dh };
+  // Días de atraso en días hábiles: fines de semana y feriados no cuentan (vence viernes → lunes = 1 día)
+  if (a.fechaCompromiso < hoy) return { clave: 'vencida', dias: Math.max(1, -dh), diasNaturales: diasNaturales(a.fechaCompromiso, hoy) };
   if (a.fechaCompromiso === hoy) return { clave: 'hoy', dias: 0 };
   if (dh <= 2) return { clave: 'proxima', dias: dh };
   return { clave: 'aTiempo', dias: dh };
@@ -352,7 +356,7 @@ export function indicadores(actividades, hoy, feriados = []) {
     riesgoSemana: venceSemana.filter((a) => enRiesgo(a, hoy, feriados)).length,
     enRiesgo: abiertas.filter((a) => enRiesgo(a, hoy, feriados)).length,
     vencidas: vencidas.length,
-    maxDiasVencida: vencidas.reduce((m, a) => Math.max(m, diasNaturales(a.fechaCompromiso, hoy)), 0),
+    maxDiasVencida: vencidas.reduce((m, a) => Math.max(m, situacion(a, hoy, feriados).dias), 0),
     requierenDirector: director.length,
     directorUrgentes: director.filter((a) => (a.accionFecha && a.accionFecha <= manana) || (a.fechaCompromiso && a.fechaCompromiso <= manana)).length,
     esperandoAreas: Object.values(otrasAreas).reduce((n, l) => n + l.length, 0),
@@ -517,9 +521,9 @@ export function evaluarAlertas({ hoy, actividades, equipo, solicitudes = [], con
   }
   if (activa('vencida')) {
     for (const a of abiertas.filter((x) => x.fechaCompromiso && x.fechaCompromiso < hoy)) {
-      const dias = diasNaturales(a.fechaCompromiso, hoy);
+      const dias = situacion(a, hoy, feriados).dias;
       agregar('vencida', { actividad: a, llave: `vencida:${a.id}:${hoy}` }, dueno(a),
-        (dir) => ({ asunto: `${quien(a, dir)}Vencida hace ${dias} día${dias === 1 ? '' : 's'}: ${a.titulo}`, etiqueta: `VENCIDA · ${dias} DÍA${dias === 1 ? '' : 'S'}` }));
+        (dir) => ({ asunto: `${quien(a, dir)}Vencida hace ${textoDiasHabiles(dias)}: ${a.titulo}`, etiqueta: `VENCIDA · ${textoDiasHabiles(dias).toUpperCase()}` }));
     }
   }
   if (activa('sinActualizar')) {
